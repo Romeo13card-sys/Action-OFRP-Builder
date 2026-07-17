@@ -10,7 +10,7 @@ on:
       MANIFEST_BRANCH:
         description: 'MANIFEST_BRANCH'
         required: true
-        default: '11.0'
+        default: '12.1'
       DEVICE_TREE_URL:
         description: 'DEVICE_TREE_URL'
         required: true
@@ -75,7 +75,6 @@ jobs:
       with:
         distribution: 'zulu'
         java-version: '11'
-
     
     - name: Sync OrangeFox sources and minimal manifest
       run: |
@@ -91,13 +90,7 @@ jobs:
         git clone ${{ github.event.inputs.DEVICE_TREE_URL }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.DEVICE_PATH }}
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
-  
-    - name: Set Swap Space
-      uses: pierotofy/set-swap-space@master
-      with:
-        swap-size-gb: 12
-
-        - name: Building recovery
+    - name: Building recovery
       run: |
         cd ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
         set +e
@@ -105,7 +98,6 @@ jobs:
         export ALLOW_MISSING_DEPENDENCIES=true
         set -e
         lunch ${{ github.event.inputs.MAKEFILE_NAME }}-eng
-        # Собираем образ
         mka recoveryimage -j$(nproc --all)
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
       continue-on-error: true
@@ -122,7 +114,6 @@ jobs:
           cp recovery.img OrangeFox-${{ github.event.inputs.DEVICE_NAME }}-recovery.img
         else
           echo "⚠️ recovery.img not in root. Searching deeper..."
-          # Ищем внутри папки recovery/
           if [ -f "recovery/recovery.img" ]; then
             cp recovery/recovery.img OrangeFox-${{ github.event.inputs.DEVICE_NAME }}-recovery.img
             echo "✅ Found in recovery/ subfolder"
@@ -130,7 +121,6 @@ jobs:
         fi
 
         # 2. Ищем OrangeFox.zip (он может называться по-разному)
-        # Сначала проверим, нет ли его в корне
         ZIP_FILE=$(find . -maxdepth 1 -name "OrangeFox*.zip" -o -name "*${{ github.event.inputs.DEVICE_NAME }}*.zip" | head -n 1)
         
         if [ -n "$ZIP_FILE" ]; then
@@ -138,7 +128,6 @@ jobs:
           cp $ZIP_FILE OrangeFox-${{ github.event.inputs.DEVICE_NAME }}-release.zip
         else
           echo "⚠️ Zip not found in root. Searching in obj/ or other subfolders..."
-          # Ищем в подпапках (например, в obj/)
           ZIP_FILE=$(find . -name "OrangeFox*.zip" -o -name "*${{ github.event.inputs.DEVICE_NAME }}*.zip" | head -n 1)
           if [ -n "$ZIP_FILE" ]; then
             echo "✅ Found zip file in subfolder: $ZIP_FILE"
@@ -148,10 +137,8 @@ jobs:
           fi
         fi
 
-        # 3. Показываем итоговый список, чтобы убедиться
         echo "=== Final files in ${{ github.event.inputs.DEVICE_NAME }} folder ==="
         ls -al
-
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
     - name: Upload to Release
